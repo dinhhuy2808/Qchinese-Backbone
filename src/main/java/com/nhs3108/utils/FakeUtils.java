@@ -1,4 +1,4 @@
-package com.nhs3108.Utils;
+package com.nhs3108.utils;
 
 import com.nhs3108.models.News;
 

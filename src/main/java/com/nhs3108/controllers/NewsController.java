@@ -1,7 +1,8 @@
 package com.nhs3108.controllers;
 
-import com.nhs3108.Utils.FakeUtils;
 import com.nhs3108.models.News;
+import com.nhs3108.utils.FakeUtils;
+
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;

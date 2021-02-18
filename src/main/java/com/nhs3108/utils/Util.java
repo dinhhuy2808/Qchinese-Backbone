@@ -1,4 +1,4 @@
-package com.nhs3108.Utils;
+package com.nhs3108.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,10 +22,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Workbook;
+import org.springframework.stereotype.Service;
 
 import com.google.gson.Gson;
 import com.nhs3108.models.ProcessShellScript;
 
+@Service
 public class Util {
 
 	public <T> T jsonToObject(String json, Class<T> destination) {

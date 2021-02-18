@@ -3,6 +3,7 @@ package com.nhs3108.configs;
 import com.nhs3108.filtes.JWTAuthenticationFilter;
 import com.nhs3108.filtes.JWTLoginFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -33,19 +34,23 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 // Add các filter vào ứng dụng của chúng ta, thứ mà sẽ hứng các request để xử lý trước khi tới các xử lý trong controllers.
                 // Về thứ tự của các filter, các bạn tham khảo thêm tại http://docs.spring.io/spring-security/site/docs/3.0.x/reference/security-filter-chain.html mục 7.3 Filter Ordering
-                .addFilterBefore(new JWTLoginFilter("/login", authenticationManager()), UsernamePasswordAuthenticationFilter.class) 
+                .addFilterBefore(jwtLoginFilter(), UsernamePasswordAuthenticationFilter.class) 
                 .addFilterBefore(new JWTAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }
 
+    @Bean
+    public JWTLoginFilter jwtLoginFilter() throws Exception {
+    	return new JWTLoginFilter("/login", authenticationManager());
+    }
+    
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-//        auth.inMemoryAuthentication().withUser("admin").password("password").roles("USER");
+        auth.inMemoryAuthentication().withUser("1234").password("202cb962ac59075b964b07152d234b70").roles("ADMIN");
         
         // Mình comment phần dưới này vì chúng ta ko sử dụng DB nhé. Nếu các bạn sử dụng, bỏ comment và config query sao cho phù hợp. Các bạn có thể GG để tìm hiểu thêm
-        auth.jdbcAuthentication().dataSource(dataSource)
-                .usersByUsernameQuery("select username,password, enabled from users where phone=?")
-                .
-                .authoritiesByUsernameQuery("select username, role from user where username=?");
+//        auth.jdbcAuthentication().dataSource(dataSource)
+//                .usersByUsernameQuery("select username,password, 1 from user where phone=?")
+//                .authoritiesByUsernameQuery("select username, 1 from user where phone=?");
         
     }
 }

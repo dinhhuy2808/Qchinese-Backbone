@@ -5,8 +5,8 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.nhs3108.Utils.Util;
 import com.nhs3108.models.SubjectHolderForJWT;
+import com.nhs3108.utils.Util;
 
 import java.security.Key;
 

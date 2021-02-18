@@ -1,8 +1,8 @@
 package com.nhs3108.filtes;
 
-import com.nhs3108.Utils.Util;
 import com.nhs3108.models.AccountCredentials;
 import com.nhs3108.services.TokenAuthenticationService;
+import com.nhs3108.utils.Util;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,6 +12,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.stereotype.Component;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
