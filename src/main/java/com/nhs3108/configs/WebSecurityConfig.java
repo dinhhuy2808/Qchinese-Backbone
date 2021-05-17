@@ -27,14 +27,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.csrf().disable().authorizeRequests()
-                .antMatchers("/").permitAll() // Có nghĩa là request "/" ko cần phải đc xác thực
-                .antMatchers(HttpMethod.POST, "/login").permitAll() // Request dạng POST tới "/login" luôn được phép truy cập dù là đã authenticated hay chưa
-                .antMatchers("/*/v1/**").access("hasRole('ADMIN')")
-                .antMatchers("/*/v2/**").access("hasRole('USER')")
+                .antMatchers("/*").permitAll()
+                .antMatchers(HttpMethod.POST, "/login").permitAll()
                 .and()
-                // Add các filter vào ứng dụng của chúng ta, thứ mà sẽ hứng các request để xử lý trước khi tới các xử lý trong controllers.
-                // Về thứ tự của các filter, các bạn tham khảo thêm tại http://docs.spring.io/spring-security/site/docs/3.0.x/reference/security-filter-chain.html mục 7.3 Filter Ordering
-                .addFilterBefore(jwtLoginFilter(), UsernamePasswordAuthenticationFilter.class) 
+				/*
+				 * .addFilterBefore(jwtLoginFilter(),
+				 * UsernamePasswordAuthenticationFilter.class)
+				 */
                 .addFilterBefore(new JWTAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
     }
 
@@ -45,7 +44,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
-        auth.inMemoryAuthentication().withUser("1234").password("202cb962ac59075b964b07152d234b70").roles("ADMIN");
+        auth.inMemoryAuthentication().withUser("username").password("abc").roles("ADMIN");
         
         // Mình comment phần dưới này vì chúng ta ko sử dụng DB nhé. Nếu các bạn sử dụng, bỏ comment và config query sao cho phù hợp. Các bạn có thể GG để tìm hiểu thêm
 //        auth.jdbcAuthentication().dataSource(dataSource)

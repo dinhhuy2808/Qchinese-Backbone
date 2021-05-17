@@ -69,7 +69,7 @@ public class JWTUtil {
         return claims;
     }
     
-    public static boolean isValidAdmin(String token) {
+    public boolean isValidAdmin(String token) {
     	try {
     		Claims claims = decodeJWT(token);
         	if(claims.getIssuer().equals(ISSUER)) {
@@ -84,7 +84,7 @@ public class JWTUtil {
     	return false;
     }
     
-    public static boolean isValidUser(String token) {
+    public boolean isValidUser(String token) {
     	try {
     		Claims claims = decodeJWT(token);
         	if(claims.getIssuer().equals(ISSUER)) {
