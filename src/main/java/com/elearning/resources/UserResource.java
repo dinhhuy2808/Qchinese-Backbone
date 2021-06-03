@@ -2,142 +2,102 @@ package com.elearning.resources;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
 
-import com.elearning.jerseyguice.dao.BaseDao;
-import com.elearning.jerseyguice.jwt.JWTUtil;
-import com.elearning.jerseyguice.model.Answer;
-import com.elearning.jerseyguice.model.ChangePasswordRequest;
-import com.elearning.jerseyguice.model.User;
-import com.elearning.services.QuizService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.elearning.dao.BaseDao;
+import com.elearning.entity.User;
+import com.elearning.jwt.JWTUtil;
+import com.elearning.model.Answer;
+import com.elearning.model.ChangePasswordRequest;
+import com.elearning.repository.UserRepository;
 import com.elearning.services.UserService;
 import com.elearning.util.Util;
 import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
-@Path("/user")
-@Singleton
+import lombok.RequiredArgsConstructor;
+
+@RequestMapping("/user")
+@RestController
+@RequiredArgsConstructor
 public class UserResource {
-	@Inject
-	Util util;
+	private final Util util;
+	private final UserService userService;
+	private final UserRepository userRepository;
+	private final JWTUtil jwtUtil;
 
-	@Inject
-	UserService userService;
-
-	@Context
-	HttpServletRequest request;
-	
-	@Inject
-	JWTUtil jwtUtil;
-	
-	@Inject
-	BaseDao baseDao;
-	private static final Type ANWSER_LIST_TYPE = new TypeToken<ArrayList<Answer>>(){}.getType();  
-
-	@GET
-	@Path("/check/{phone}")
-	public String user(@PathParam("phone") String phone) {
+	@GetMapping("/check/{phone}")
+	public String user(@PathVariable("phone") String phone) {
 		return userService.checkUserByPhone(phone);
 	}
 	
-	@GET
-	@Path("/v2/user-info")
-	public String getUser() {
+	@GetMapping("/v2/user-info")
+	public String getUser(HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		return userService.getUserInfo(user_id);
 	}
 	
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("/{method}")
-	public String register(String content,@PathParam("method") int method) {
-		User user = new User();
-		user = util.jsonToObject(content, User.class);
+	@PostMapping("/{method}")
+	public String register(@RequestBody User user,@PathVariable("method") int method) {
 		return userService.registerUser(user, method);
 	}
 	
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("/login/{loginMethod}")
-	public String login(String content,@PathParam("loginMethod") int loginMethod) {
-		User user = util.jsonToObject(content, User.class);
+	@PostMapping("/login/{loginMethod}")
+	public String login(@RequestBody User user,@PathVariable("loginMethod") int loginMethod) {
 		return userService.login(user, loginMethod);
 	}
 	
-	@GET
-	@Path("v1/isAdmin")
-	public String isAdmin() {
+	@GetMapping("v1/isAdmin")
+	public String isAdmin(HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		return jwtUtil.isValidAdmin(token)?"true":"false";
 	}
 	
-	@GET
-	@Path("v1/getAllUsers")
-	public String getAllUsers() {
-		String token = request.getHeader("Authorization");
-		return util.objectToJSON(baseDao.findByKey(new User()));
+	@GetMapping("v1/getAllUsers")
+	public String getAllUsers(HttpServletRequest request) {
+		return util.objectToJSON(userRepository.findAll());
 	}
 	
-	@GET
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Path("v1/getUserInfo/{userId}")
-	public String getUserInfo(@PathParam("userId") Long userId) {
+	@GetMapping("v1/getUserInfo/{userId}")
+	public String getUserInfo(@PathVariable("userId") Long userId) {
 		return userService.getUserInfo(userId);
 	}
 	
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v1/changePassword")
-	public String changePasswordByAdmin(String content,@PathParam("loginMethod") int loginMethod) {
-		return userService.changePasswordByAdmin(util.jsonToObject(content, ChangePasswordRequest.class));
-	}
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Path("v2/changePassword")
-	public String changePassword(String content,@PathParam("loginMethod") int loginMethod) {
-		String token = request.getHeader("Authorization");
-		Long user_id = jwtUtil.getUserId(token);
-		ChangePasswordRequest request = util.jsonToObject(content, ChangePasswordRequest.class);
-		request.setUserId(user_id);
-		return userService.changePassword(request);
+	@PostMapping("v1/changePassword")
+	public String changePasswordByAdmin(@RequestBody ChangePasswordRequest changePasswordRequest,
+			@PathVariable("loginMethod") int loginMethod) {
+		return userService.changePasswordByAdmin(changePasswordRequest);
 	}
 	
-	@POST
-	@Consumes(MediaType.TEXT_PLAIN)
-	@Produces(MediaType.APPLICATION_JSON)
-	@Path("v2/update/avatar")
-	public String updateAvatar(String content,@PathParam("loginMethod") int loginMethod) {
+	@PostMapping("v2/changePassword")
+	public String changePassword(@RequestBody ChangePasswordRequest changePasswordRequest,
+			@PathVariable("loginMethod") int loginMethod,
+			HttpServletRequest request) {
+		String token = request.getHeader("Authorization");
+		Long user_id = jwtUtil.getUserId(token);
+		changePasswordRequest.setUserId(user_id);
+		return userService.changePassword(changePasswordRequest);
+	}
+	
+	@PostMapping("v2/update/avatar")
+	public String updateAvatar(String content, HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		userService.updateAvatar(user_id, content);
 		return "";
 	}
 
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v2/send-friend-request/{friendId}")
-	public String sendFriendRequest(String content,@PathParam("friendId") Long friendId) {
+	@PostMapping("v2/send-friend-request/{friendId}")
+	public String sendFriendRequest(String content,@PathVariable("friendId") Long friendId,
+			HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		try {
@@ -148,11 +108,9 @@ public class UserResource {
 		return "200";
 	}
 
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v2/accept-friend-request/{friendId}")
-	public String acceptFriendRequest(String content,@PathParam("friendId") Long friendId) {
+	@PostMapping("v2/accept-friend-request/{friendId}")
+	public String acceptFriendRequest(@PathVariable("friendId") Long friendId,
+			HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		try {
@@ -163,11 +121,8 @@ public class UserResource {
 		return "200";
 	}
 
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v2/get-friends")
-	public String getFriends() {
+	@PostMapping("v2/get-friends")
+	public String getFriends(HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		try {
@@ -176,11 +131,9 @@ public class UserResource {
 			return "404";
 		}
 	}
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v2/get-friends-request")
-	public String getFriendsRequest() {
+
+	@PostMapping("v2/get-friends-request")
+	public String getFriendsRequest(HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		try {
@@ -190,12 +143,10 @@ public class UserResource {
 		}
 	}
 
-	@POST
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.TEXT_PLAIN)
-	@Path("v2/add-group/{friendId}/{roomKey}")
-	public String addGroup(String content, @PathParam("friendId") Long friendId,
-			@PathParam("roomKey") String roomKey) {
+	@PostMapping("v2/add-group/{friendId}/{roomKey}")
+	public String addGroup(@PathVariable("friendId") Long friendId,
+			@PathVariable("roomKey") String roomKey,
+			HttpServletRequest request) {
 		String token = request.getHeader("Authorization");
 		Long user_id = jwtUtil.getUserId(token);
 		try {

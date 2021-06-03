@@ -1,19 +1,5 @@
 package com.elearning.services;
 
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_AUDIO_PATH_FOR_EXERCISE;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_AUDIO_URL_FOR_HSK;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_DOCUMENT_ROOT_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_IMAGE_PATH_FOR_EXERCISE;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ_INPUT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_PUBLIC_IMAGE_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_QUESTIONS_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_EXECUTE_UPLOAD_SHELL_SCRIPT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_EXECUTE_TEST_UPLOAD_SHELL_SCRIPT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_UPLOAD_EXERCISES_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_UPLOAD_TEST_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_BATCH_PATH;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -21,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,98 +30,67 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.stereotype.Service;
 
-import com.elearning.jerseyguice.constant.Category;
-import com.elearning.jerseyguice.constant.QuestionType;
-import com.elearning.jerseyguice.dao.BaseDao;
-import com.elearning.jerseyguice.dao.QuizDao;
-import com.elearning.jerseyguice.dao.UserRankingDao;
-import com.elearning.jerseyguice.model.Answer;
-import com.elearning.jerseyguice.model.GetTestSummaryResponse;
-import com.elearning.jerseyguice.model.PromoteSetting;
-import com.elearning.jerseyguice.model.QuestionBody;
-import com.elearning.jerseyguice.model.QuestionDescription;
-import com.elearning.jerseyguice.model.QuestionDescriptionForInput;
-import com.elearning.jerseyguice.model.QuizResultResponse;
-import com.elearning.jerseyguice.model.Result;
-import com.elearning.jerseyguice.model.ResultDetail;
-import com.elearning.jerseyguice.model.UserRanking;
-import com.elearning.jerseyguice.model.UserResult;
+import com.elearning.configuration.property.AudioProperty;
+import com.elearning.configuration.property.DocumentProperty;
+import com.elearning.configuration.property.ExecuteProperty;
+import com.elearning.configuration.property.ImageProperty;
+import com.elearning.configuration.property.LessonProperty;
+import com.elearning.configuration.property.PublicProperty;
+import com.elearning.configuration.property.QuestionProperty;
+import com.elearning.configuration.property.UploadProperty;
+import com.elearning.constant.Category;
+import com.elearning.constant.QuestionType;
+import com.elearning.dao.QuizDao;
+import com.elearning.dao.UserRankingDao;
+import com.elearning.entity.PromoteSetting;
+import com.elearning.entity.Result;
+import com.elearning.entity.UserRanking;
+import com.elearning.entity.UserResult;
+import com.elearning.model.Answer;
+import com.elearning.model.GetTestSummaryResponse;
+import com.elearning.model.QuestionBody;
+import com.elearning.model.QuestionDescription;
+import com.elearning.model.QuestionDescriptionForInput;
+import com.elearning.model.QuizResultResponse;
+import com.elearning.model.ResultDetail;
+import com.elearning.repository.PromoteSettingRepository;
+import com.elearning.repository.ResultRepository;
+import com.elearning.repository.UserRankingRepository;
+import com.elearning.repository.UserResultRepository;
 import com.elearning.util.Util;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
-@Singleton
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
 public class QuizService {
-	@Inject
-	@Named(BIND_QUESTIONS_PATH)
-	private String questionPath;
 
-	@Inject
-	@Named(BIND_LESSON_QUIZ)
-	private String lessonQuizPath;
-
-	@Inject
-	@Named(BIND_LESSON_QUIZ_INPUT)
-	private String lessonQuizInputPath;
-	
-	@Inject
-	@Named(BIND_IMAGE_PATH_FOR_EXERCISE)
-	private String imageExercisePath;
-
-	@Inject
-	@Named(BIND_AUDIO_URL_FOR_HSK)
-	private String audioUrl;
-
-	@Inject
-	@Named(BIND_AUDIO_PATH_FOR_EXERCISE)
-	private String audioExercisePath;
-
-	@Inject
-	@Named(BIND_DOCUMENT_ROOT_PATH)
-	private String documentRootPath;
-
-	@Inject
-	@Named(BIND_PUBLIC_IMAGE_PATH)
-	private String publicImagePath;
-
-	@Inject
-	@Named(BIND_UPLOAD_EXERCISES_PATH)
-	private String uploadExercisesPath;
-	
-	@Inject
-	@Named(BIND_UPLOAD_TEST_PATH)
-	private String uploadTestPath;
-	
-	@Inject
-	@Named(BIND_EXECUTE_UPLOAD_SHELL_SCRIPT)
-	private String executeUploadShellScript;
-	
-	@Inject
-	@Named(BIND_EXECUTE_TEST_UPLOAD_SHELL_SCRIPT)
-	private String executeTestUploadShellScript;
-	
-	@Inject
-	@Named(BIND_BATCH_PATH)
-	private String batchPath;
-	
 	private static final Type QUESTION_DESCRIPTION_LIST_TYPE = new TypeToken<ArrayList<QuestionDescription>>() {
 	}.getType();
 
-	@Inject
-	Util util;
+	private final LessonProperty lessonProperty;
+	private final AudioProperty audioProperty;
+	private final PublicProperty publicProperty;
+	private final UploadProperty uploadProperty;
+	private final ExecuteProperty executeProperty;
+	private final QuestionProperty questionProperty;
+	private final DocumentProperty documentProperty;
+	private final ImageProperty imageProperty;
 
-	@Inject
-	BaseDao baseDao;
+	private final Util util;
 
-	@Inject
-	UserRankingDao userRankingDao;
+	private final PromoteSettingRepository promoteSettingRepository;
+	private final ResultRepository resultRepository;
+	private final UserResultRepository userResultRepository;
+	private final UserRankingRepository userRankingRepository;
 
-	@Inject
-	QuizDao quizDao;
+	private final UserRankingDao userRankingDao;
+
+	private final QuizDao quizDao;
 
 	private static String IMAGE_SOURCE_TEMP = "!image_source!";
 	private static String AUDIO_TEMP = "!audio_temp!";
@@ -152,32 +106,13 @@ public class QuizService {
 			+ "<p><span class=\"label-words\" data-wid=\"875\">!answer_description!</span></p>\r\n" + "</div>";
 
 	public String getQuestionForTest(String test) {
-		String path = questionPath + "/test-" + test;
+		String path = questionProperty.getPath() + "/test-" + test;
 		return util.getJsonStringFromFile(path + ".json");
 	}
 
 	public String getQuestionForQuiz(String quiz) {
-		String path = lessonQuizPath + "/hsk-" + quiz;
+		String path = lessonProperty.getQuizPath() + "/hsk-" + quiz;
 		return util.getJsonStringFromFile(path + ".json");
-	}
-
-	private List<QuestionDescription> getQuestionDescriptions(String path) {
-		List<QuestionDescription> questionDescriptions = new ArrayList<>();
-		String text = "";
-		try {
-			text = new String(Files.readAllBytes(Paths.get(path + ".html")), StandardCharsets.UTF_8);
-			Document doc = Jsoup.parse(text);
-			Elements items = doc.getElementsByClass("item");
-			for (Element item : items) {
-				String type = item.attr("type");
-				questionDescriptions.add(generateQuestionDesc(type, item));
-			}
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return questionDescriptions;
 	}
 
 	public String update(String test) {
@@ -207,7 +142,7 @@ public class QuizService {
 
 							result.setNumber(Integer.parseInt(number));
 							result.setAnswer(answer);
-							baseDao.add(result);
+							resultRepository.save(result);
 						} else if (type.equalsIgnoreCase("2") || type.equalsIgnoreCase("5")
 								|| type.equalsIgnoreCase("6")) {
 							Element bodyElement = item.getElementsByClass("field-body").get(0);
@@ -219,7 +154,7 @@ public class QuizService {
 										.text().split("/")[0];
 								result.setNumber(Integer.parseInt(numberChild));
 								result.setAnswer(answer);
-								baseDao.add(result);
+								resultRepository.save(result);
 							}
 						}
 					}
@@ -366,11 +301,7 @@ public class QuizService {
 	}
 
 	private List<Result> getAnswerBy(int hsk, int test, QuestionType questionType) {
-		Result result = new Result();
-		result.setHsk(hsk);
-		result.setTest(test);
-		result.setType(questionType.name());
-		return baseDao.findByKey(result);
+		return resultRepository.findByHskAndTestAndType(hsk, test, questionType.name());
 	}
 
 	public String checkResult(int hsk, int test, Map<String, String> userAnswers, QuestionType quesionType, Long userId,
@@ -411,17 +342,20 @@ public class QuizService {
 		ResultDetail resultDetail = new ResultDetail();
 		resultDetail.setHsk(hsk);
 		resultDetail.setTest(test);
-		double rate =Double.valueOf(countListenCorrectAnswer + countReadCorrectAnswer) / Double.valueOf(results.size()); 
+		double rate = Double.valueOf(countListenCorrectAnswer + countReadCorrectAnswer)
+				/ Double.valueOf(results.size());
 		resultDetail.setRate(Double.isNaN(rate) ? 0L : rate);
 		resultDetail.setAnswers(answers);
 		resultDetail
 				.setListenRate(countListenCorrectAnswer + "/" + countNumberOfQuestionBy(categoryMap, Category.NGHE));
 		resultDetail
 				.setReadRate(countReadCorrectAnswer + "/" + countNumberOfQuestionBy(categoryMap, Category.DOC_HIEU));
-		int listenScore = (int)Math.round(Double.valueOf(Double.valueOf(countListenCorrectAnswer)/ Double.valueOf(countNumberOfQuestionBy(categoryMap, Category.NGHE))*100));
-		int readingScore = (int)Math.round(Double.valueOf(Double.valueOf(countReadCorrectAnswer)/ Double.valueOf(countNumberOfQuestionBy(categoryMap, Category.DOC_HIEU))*100));
+		int listenScore = (int) Math.round(Double.valueOf(Double.valueOf(countListenCorrectAnswer)
+				/ Double.valueOf(countNumberOfQuestionBy(categoryMap, Category.NGHE)) * 100));
+		int readingScore = (int) Math.round(Double.valueOf(Double.valueOf(countReadCorrectAnswer)
+				/ Double.valueOf(countNumberOfQuestionBy(categoryMap, Category.DOC_HIEU)) * 100));
 		resultDetail.setScore(listenScore + readingScore);
-		String path = questionPath + "/test-" + hsk + "-" + test;
+		String path = questionProperty.getPath() + "/test-" + hsk + "-" + test;
 
 		QuizResultResponse response = new QuizResultResponse();
 		response.setQuestionDescription(questionDescriptions);
@@ -434,44 +368,48 @@ public class QuizService {
 			Integer correctReading, Integer correctListening, int time) {
 		PromoteSetting promoteSetting = new PromoteSetting();
 		promoteSetting.setHsk(resultDetail.getHsk());
-		promoteSetting = (PromoteSetting) baseDao.findByKey(promoteSetting).get(0);
+		promoteSetting = promoteSettingRepository.findByHsk(resultDetail.getHsk()).get(0);
 
 		UserResult userResult = new UserResult();
 		userResult.setUserId(userId);
 		userResult.setHsk(resultDetail.getHsk());
 		userResult.setTestLesson(resultDetail.getTest());
 		userResult.setResultType(quesionType.name());
-		List<UserResult> userResults = baseDao.findByKeySortBy(userResult, " id desc ");
-		userResult.setTotalScore( resultDetail.getScore().longValue() * promoteSetting.getFactor());
+		List<UserResult> userResults = userResultRepository.findByUserIdAndHskAndTestLessonAndResultTypeOrderByIdDesc(
+				userId, resultDetail.getHsk(), resultDetail.getTest(), quesionType.name());
+		userResult.setTotalScore(resultDetail.getScore().longValue() * promoteSetting.getFactor());
 		userResult.setTotalTime(new Long(time));
-		userResult.setTotalListenScore( correctListening.longValue() * promoteSetting.getFactor());
+		userResult.setTotalListenScore(correctListening.longValue() * promoteSetting.getFactor());
 		userResult.setTotalListenTime(new Long(0));
-		userResult.setTotalReadingScore( correctReading.longValue() * promoteSetting.getFactor());
+		userResult.setTotalReadingScore(correctReading.longValue() * promoteSetting.getFactor());
 		userResult.setTotalReadingTime(new Long(0));
 		userResult.setResultDetail(util.objectToJSON(resultDetail));
 		if (userResults.isEmpty()) {
 			userResult.setWordAmount(0);
 			userResult.setWordDetail("[]");
-			baseDao.add(userResult);
+			userResultRepository.save(userResult);
 		} else {
 			userResult.setWordAmount(userResults.get(0).getWordAmount());
 			userResult.setWordDetail(userResults.get(0).getWordDetail());
-			baseDao.add(userResult);
-			/*baseDao.updateByInputKey(userResult, Arrays.asList("userid", "hsk", "testlesson", "resulttype"));*/
+			userResultRepository.save(userResult);
+			/*
+			 * baseDao.updateByInputKey(userResult, Arrays.asList("userid", "hsk",
+			 * "testlesson", "resulttype"));
+			 */
 		}
 
 		UserRanking userRanking = new UserRanking();
 		userRanking.setUserId(userId);
-		List<UserRanking> userRankings = baseDao.findByKey(userRanking);
+		List<UserRanking> userRankings = userRankingRepository.findByUserId(userId);
 		if (userRankings.isEmpty()) {
 			userRanking.setTotalScore(Long.valueOf(userRankingDao.getTotalScoreBy(userId)));
 			userRanking.setTitleId(1);
-			baseDao.add(userRanking);
+			userRankingRepository.save(userRanking);
 		} else {
 			userRanking = userRankings.get(0);
 			userRanking.setTotalScore(Long.valueOf(userRankingDao.getTotalScoreBy(userId)));
 			userRanking.setTitleId(userRankingDao.getCurrentRankBy(userId));
-			baseDao.updateByInputKey(userRanking, Arrays.asList("userid"));
+			userRankingRepository.save(userRanking);
 		}
 	}
 
@@ -520,8 +458,8 @@ public class QuizService {
 			workbook = new XSSFWorkbook(inputStream);
 			Result result = new Result();
 			result.setHsk(Integer.parseInt(hsk));
-			result.setType(QuestionType.QUIZ.name());
-			baseDao.deleteByGivenValue(result);
+			result.setType(QuestionType.QUIZ);
+			resultRepository.deleteByHskAndType(Integer.parseInt(hsk), QuestionType.QUIZ.name());
 			for (int index = 1; index < workbook.getNumberOfSheets(); index++) {
 				XSSFSheet sheet = workbook.getSheetAt(index);
 				Set<MergedRow> mergedRows = new HashSet<>();
@@ -567,11 +505,11 @@ public class QuizService {
 					if (!StringUtils.isEmpty(number) && !StringUtils.isAlphanumericSpace(number)) {
 					}
 				}
-				baseDao.addList(results);
+				resultRepository.saveAll(results);
 				questionDescriptions = questionDescriptions.stream().filter(desc -> desc != null)
 						.collect(Collectors.toList());
 				util.writeToFile(util.objectToJSON(questionDescriptions),
-						lessonQuizPath + "/hsk-" + hsk + "-" + sheet.getSheetName().trim() + ".json");
+						lessonProperty.getQuizPath() + "/hsk-" + hsk + "-" + sheet.getSheetName().trim() + ".json");
 			}
 
 		} catch (Exception e) {
@@ -597,28 +535,25 @@ public class QuizService {
 				questionBody.setNumber(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(5).getRawValue());
 				Map<String, String> values = new ImmutableMap.Builder<String, String>()
 						.put("A", "<div><i class=\"fa fa-check\"></i></div>")
-						.put("B", "<div><i class=\"fa fa-times\"></i></div>")
-						.build();
+						.put("B", "<div><i class=\"fa fa-times\"></i></div>").build();
 				String questionType = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(0).getStringCellValue();
 				String header = TYPE_1_TEMPLATE;
 //				if (questionType.equals("NGHE")) {
-					String value = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).toString();
-					String imageHtml = generateImageHtmlBy(value, hsk,
-							Integer.parseInt(sheet.getSheetName().trim()), "");
-					if (questionType.equals("NGHE")) {
-						header = header.replace(QUESTION_DESCRIPTION_TEMP,"");
-						questionDescription.setListenContent(value);
-					} else {
-						header = header.replace(QUESTION_DESCRIPTION_TEMP,value.equals(imageHtml)?value:"");
-					}
-					header = header.replace(IMAGE_SOURCE_TEMP,value.equals(imageHtml)?"":imageHtml);
-					
-					String imageTemp = "<div class=\"field-image\"> " + " <img style=\"max-width: 100%;\" src=\"!image_source!\" alt=\"\"> "
-							+ "</div> ";
-					value = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).toString();
-					imageHtml = generateImageHtmlBy(value, hsk,
-							Integer.parseInt(sheet.getSheetName().trim()), imageTemp);
-					questionBody.setHeader(value.equals(imageHtml)?value:imageHtml);
+				String value = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).toString();
+				String imageHtml = generateImageHtmlBy(value, hsk, Integer.parseInt(sheet.getSheetName().trim()), "");
+				if (questionType.equals("NGHE")) {
+					header = header.replace(QUESTION_DESCRIPTION_TEMP, "");
+					questionDescription.setListenContent(value);
+				} else {
+					header = header.replace(QUESTION_DESCRIPTION_TEMP, value.equals(imageHtml) ? value : "");
+				}
+				header = header.replace(IMAGE_SOURCE_TEMP, value.equals(imageHtml) ? "" : imageHtml);
+
+				String imageTemp = "<div class=\"field-image\"> "
+						+ " <img style=\"max-width: 100%;\" src=\"!image_source!\" alt=\"\"> " + "</div> ";
+				value = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).toString();
+				imageHtml = generateImageHtmlBy(value, hsk, Integer.parseInt(sheet.getSheetName().trim()), imageTemp);
+				questionBody.setHeader(value.equals(imageHtml) ? value : imageHtml);
 //				} else if (questionType.equals("DOC")) {
 //					header = header.replace(QUESTION_DESCRIPTION_TEMP,
 //							"");
@@ -629,8 +564,7 @@ public class QuizService {
 //							? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue()
 //							: "");
 //				}
-				
-				
+
 				header = header.replace(AUDIO_TEMP,
 						generateAudioHtmlBy(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(10), hsk,
 								Integer.parseInt(sheet.getSheetName().trim())));
@@ -643,7 +577,7 @@ public class QuizService {
 				if (questionDescription.getNumber() != null && StringUtils.isNumeric(questionDescription.getNumber())) {
 					Result newResult = new Result();
 					newResult.setHsk(Integer.parseInt(hsk));
-					newResult.setType(QuestionType.QUIZ.name());
+					newResult.setType(QuestionType.QUIZ);
 					newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 					newResult.setNumber(Integer.parseInt(questionDescription.getNumber()));
 					newResult.setAnswer(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(9).toString());
@@ -676,7 +610,7 @@ public class QuizService {
 					if (questionBody.getNumber() != null && StringUtils.isNumeric(questionBody.getNumber())) {
 						Result newResult = new Result();
 						newResult.setHsk(Integer.parseInt(hsk));
-						newResult.setType(QuestionType.QUIZ.name());
+						newResult.setType(QuestionType.QUIZ);
 						newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 						newResult.setNumber(Integer.parseInt(questionBody.getNumber()));
 						newResult.setAnswer(sheet.getRow(startRow - 1).getCell(9).toString());
@@ -707,28 +641,32 @@ public class QuizService {
 									sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue() != null
 											? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue()
 											: "")
-							.replace(AUDIO_TEMP, generateAudioHtmlBy(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(10),
-									hsk, Integer.parseInt(sheet.getSheetName().trim())));
-					questionDescription.setListenContent(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue() != null
-											? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue()
-											: "");
+							.replace(AUDIO_TEMP,
+									generateAudioHtmlBy(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(10), hsk,
+											Integer.parseInt(sheet.getSheetName().trim())));
+					questionDescription.setListenContent(
+							sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue() != null
+									? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue()
+									: "");
 				} else if (questionType.equals("DOC")) {
 					header = header
 							.replace(QUESTION_DESCRIPTION_TEMP,
 									sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue() != null
 											? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(4).getStringCellValue()
 											: "")
-							.replace(AUDIO_TEMP, generateAudioHtmlBy(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(10),
-									hsk, Integer.parseInt(sheet.getSheetName().trim())));
-					questionBody.setHeader(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue() != null
-											? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue()
-											: "");
+							.replace(AUDIO_TEMP,
+									generateAudioHtmlBy(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(10), hsk,
+											Integer.parseInt(sheet.getSheetName().trim())));
+					questionBody
+							.setHeader(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue() != null
+									? sheet.getRow(mergedRow.getFirstRow() - 1).getCell(6).getStringCellValue()
+									: "");
 				}
 				if (header.contains(IMAGE_SOURCE_TEMP)) {
 					Document doc = Jsoup.parse(header);
 					Elements eleImages = doc.select("img");
-					for(Element eleImage : eleImages) {
-						if(eleImage.attr("src").equals(IMAGE_SOURCE_TEMP)) {
+					for (Element eleImage : eleImages) {
+						if (eleImage.attr("src").equals(IMAGE_SOURCE_TEMP)) {
 							eleImage.parent().remove();
 						}
 					}
@@ -743,7 +681,7 @@ public class QuizService {
 				if (questionDescription.getNumber() != null && StringUtils.isNumeric(questionDescription.getNumber())) {
 					Result newResult = new Result();
 					newResult.setHsk(Integer.parseInt(hsk));
-					newResult.setType(QuestionType.QUIZ.name());
+					newResult.setType(QuestionType.QUIZ);
 					newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 					newResult.setNumber(Integer.parseInt(questionDescription.getNumber()));
 					newResult.setAnswer(sheet.getRow(mergedRow.getFirstRow() - 1).getCell(9).toString());
@@ -767,7 +705,7 @@ public class QuizService {
 				if (questionDescription.getNumber() != null && StringUtils.isNumeric(questionDescription.getNumber())) {
 					Result newResult = new Result();
 					newResult.setHsk(Integer.parseInt(hsk));
-					newResult.setType(QuestionType.QUIZ.name());
+					newResult.setType(QuestionType.QUIZ);
 					newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 					newResult.setNumber(Integer.parseInt(questionDescription.getNumber()));
 					char[] answer = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(9).toString().trim()
@@ -786,12 +724,12 @@ public class QuizService {
 					String subjectTemplate = "<div class=\"field-subject\"><p>!question_description!</p></div><div class=\"field-select\"></div>";
 					bodies.add(questionBody);
 					String questionType = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(0).getStringCellValue();
-					
+
 					String key = sheet.getRow(index).getCell(7).toString();
 					if (!StringUtils.isEmpty(key)) {
-						
-						String imageTemp = "<div class=\"field-image\"> " + " <img style=\"max-width: 100%;\" src=\"!image_source!\" alt=\"\"> "
-								+ "</div> ";
+
+						String imageTemp = "<div class=\"field-image\"> "
+								+ " <img style=\"max-width: 100%;\" src=\"!image_source!\" alt=\"\"> " + "</div> ";
 						String imageHtml = generateImageHtmlBy(sheet.getRow(index).getCell(8).toString(), hsk,
 								Integer.parseInt(sheet.getSheetName().trim()), imageTemp);
 						String audiotemplate = generateAudioHtmlBy(sheet.getRow(index).getCell(10), hsk,
@@ -805,8 +743,7 @@ public class QuizService {
 									sheet.getRow(index).getCell(4).toString()));
 							values.put(answerNames[countAnswer], imageHtml + audiotemplate);
 						}
-						
-						
+
 						countAnswer++;
 					} else {
 						values.put(sheet.getRow(index).getCell(7).toString(),
@@ -820,7 +757,7 @@ public class QuizService {
 					if (questionBody.getNumber() != null && StringUtils.isNumeric(questionBody.getNumber())) {
 						Result newResult = new Result();
 						newResult.setHsk(Integer.parseInt(hsk));
-						newResult.setType(QuestionType.QUIZ.name());
+						newResult.setType(QuestionType.QUIZ);
 						newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 						newResult.setNumber(Integer.parseInt(questionBody.getNumber()));
 						newResult.setAnswer(sheet.getRow(index).getCell(9).getStringCellValue());
@@ -843,7 +780,7 @@ public class QuizService {
 					if (number != null) {
 						Result newResult = new Result();
 						newResult.setHsk(Integer.parseInt(hsk));
-						newResult.setType(QuestionType.QUIZ.name());
+						newResult.setType(QuestionType.QUIZ);
 						newResult.setTest(Integer.parseInt(sheet.getSheetName().trim()));
 						newResult.setNumber(number.intValue());
 						newResult.setAnswer(sheet.getRow(index).getCell(9).toString());
@@ -931,15 +868,16 @@ public class QuizService {
 					System.out.println("key: " + key);
 					System.out.println(childQuizMapFromMergedRow.get(key));
 					System.out.println(sheet.getSheetName().trim());
-					questionDescriptions.add(getInputContentFromQuiz(key, childQuizMapFromMergedRow.get(key), sheet, hsk, results));
+					questionDescriptions
+							.add(getInputContentFromQuiz(key, childQuizMapFromMergedRow.get(key), sheet, hsk, results));
 					String number = sheet.getRow(key.getFirstRow() - 1).getCell(5).toString();
 					if (!StringUtils.isEmpty(number) && !StringUtils.isAlphanumericSpace(number)) {
 					}
 				}
 				questionDescriptions = questionDescriptions.stream().filter(desc -> desc != null)
 						.collect(Collectors.toList());
-				util.writeToFile(util.objectToJSON(questionDescriptions),
-						lessonQuizInputPath + "/hsk-" + hsk + "-" + sheet.getSheetName().trim() + ".json");
+				util.writeToFile(util.objectToJSON(questionDescriptions), lessonProperty.getQuizInputPath() + "/hsk-"
+						+ hsk + "-" + sheet.getSheetName().trim() + ".json");
 			}
 
 		} catch (Exception e) {
@@ -950,8 +888,8 @@ public class QuizService {
 		return true;
 	}
 
-	private QuestionDescriptionForInput getInputContentFromQuiz(MergedRow mergedRow, List<MergedRow> childQuizInMergedRow, XSSFSheet sheet,
-			String hsk, List<Result> results) {
+	private QuestionDescriptionForInput getInputContentFromQuiz(MergedRow mergedRow,
+			List<MergedRow> childQuizInMergedRow, XSSFSheet sheet, String hsk, List<Result> results) {
 		QuestionDescriptionForInput questionDescription = new QuestionDescriptionForInput();
 		List<QuestionBody> bodies = new ArrayList<QuestionBody>();
 		String type = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(mergedRow.getFirstCol() - 2).getRawValue();
@@ -959,8 +897,9 @@ public class QuizService {
 		Pattern nummberPattern = Pattern.compile("^(\\(?\\+?[0-9]*\\)?).[0-9_\\- \\(\\)]*$");// 5
 		String progress = sheet.getRow(mergedRow.getFirstRow() - 1).getCell(mergedRow.getFirstCol() - 1).toString()
 				.replace(" ", "").replace(".", "");
-		List<String> fileNames = util.getAllFilesNameInFolder(publicImagePath + "BT/" + hsk);
-		fileNames = fileNames.stream().map(file -> file.substring(0, file.lastIndexOf("."))).collect(Collectors.toList());
+		List<String> fileNames = util.getAllFilesNameInFolder(publicProperty.getImagePath() + "BT/" + hsk);
+		fileNames = fileNames.stream().map(file -> file.substring(0, file.lastIndexOf(".")))
+				.collect(Collectors.toList());
 		List<String> contents = new LinkedList<String>();
 		if (progressPattern.matcher(progress).matches() || nummberPattern.matcher(progress).matches()) {
 			Integer idCount = 0;
@@ -973,21 +912,21 @@ public class QuizService {
 					value = sheet.getRow(index).getCell(4).toString();
 					if (!isImageName(value, hsk, fileNames) && !value.trim().equals("DUNG") && !value.equals("SAI")) {
 						contents.add(generateTypingHtml(value, number, idCount));
-						idCount+=value.split("[\n。]").length;
+						idCount += value.split("[\n。]").length;
 					}
 				}
 				if (sheet.getRow(index).getCell(6) != null) {
 					value = sheet.getRow(index).getCell(6).toString();
 					if (!isImageName(value, hsk, fileNames) && !value.trim().equals("DUNG") && !value.equals("SAI")) {
 						contents.add(generateTypingHtml(value, number, idCount));
-						idCount+=value.split("[\n。]").length;
+						idCount += value.split("[\n。]").length;
 					}
 				}
 				if (sheet.getRow(index).getCell(8) != null) {
 					value = sheet.getRow(index).getCell(8).toString();
 					if (!isImageName(value, hsk, fileNames) && !value.trim().equals("DUNG") && !value.equals("SAI")) {
 						contents.add(generateTypingHtml(value, number, idCount));
-						idCount+=value.split("[\n。]").length;
+						idCount += value.split("[\n。]").length;
 					}
 				}
 			}
@@ -1007,18 +946,18 @@ public class QuizService {
 		}
 		String template = "<div><div class=\"quote\" id=\"content\">%s</div>"
 				+ "<textarea id=\"input%s-%d\" class=\"input_area form-control hantu-only\" onPaste=\"return true\" placeholder=\"start typing here...\""
-				+ " oninput=\"Window.practiceTypingComponent.processCurrentText(event.target)\"></textarea>"
-				+ "</div>";
+				+ " oninput=\"Window.practiceTypingComponent.processCurrentText(event.target)\"></textarea>" + "</div>";
 		String result = "";
 		String[] contentSplit = content.split("\n");
-		for(String read: contentSplit) {
-			for(String readSplitDot : read.split("。")) {
+		for (String read : contentSplit) {
+			for (String readSplitDot : read.split("。")) {
 				result += String.format(template, readSplitDot, number, idCount++);
 			}
-			
+
 		}
 		return result;
 	}
+
 	private boolean isImageName(String content, String hsk, List<String> fileNames) {
 		String result = content;
 		if (fileNames.contains(result)) {
@@ -1026,33 +965,34 @@ public class QuizService {
 		}
 		return false;
 	}
+
 	private String generateAudioHtmlBy(XSSFCell cellAudioName, String hsk, int lesson) {
-		
-		String audioTemp = "<audio controls=\"\" controlsList=\"nodownload\"> \r\n" + 
-				"  <source src=\"!audio_source!\" type=\"audio/mpeg\"> Your browser does not support the audio element. \r\n" + 
-				"</audio>\r\n" + 
-				"<div>\r\n" + 
-				"   <button class=\"btn\" ><img src=\"assets/images/numbers/undo.svg\" onclick=\"previous(this)\" alt=\"\"  width=\"30px\" height=\"30px\"></button>\r\n" + 
-				"   <button class=\"btn mr-4\" ><img src=\"assets/images/numbers/redo.svg\" onclick=\"next(this)\" alt=\"\" width=\"30px\" height=\"30px\"></button>\r\n" + 
-				"</div>";
+
+		String audioTemp = "<audio controls=\"\" controlsList=\"nodownload\"> \r\n"
+				+ "  <source src=\"!audio_source!\" type=\"audio/mpeg\"> Your browser does not support the audio element. \r\n"
+				+ "</audio>\r\n" + "<div>\r\n"
+				+ "   <button class=\"btn\" ><img src=\"assets/images/numbers/undo.svg\" onclick=\"previous(this)\" alt=\"\"  width=\"30px\" height=\"30px\"></button>\r\n"
+				+ "   <button class=\"btn mr-4\" ><img src=\"assets/images/numbers/redo.svg\" onclick=\"next(this)\" alt=\"\" width=\"30px\" height=\"30px\"></button>\r\n"
+				+ "</div>";
 		return cellAudioName != null && StringUtils.trimToNull(cellAudioName.toString()) != null
 				? audioTemp.replace("!audio_source!",
-						audioExercisePath.replace("{hsk}", hsk)
-								+ util.getCompleteNameInFolder(documentRootPath + "public/audios/BT/" + hsk,
-										cellAudioName.toString() + ".mp3", String.format("%02d", lesson)))
+						audioProperty.getPathExercise().replace("{hsk}", hsk) + util.getCompleteNameInFolder(
+								documentProperty.getRootPath() + "public/audios/BT/" + hsk,
+								cellAudioName.toString() + ".mp3", String.format("%02d", lesson)))
 				: "";
 	}
 
 	private String generateImageHtmlBy(String imageName, String hsk, int lesson, String template) {
 		String result = imageName;
 		try {
-			List<String> fileNames = util.getAllFilesNameInFolder(publicImagePath + "BT/" + hsk);
+			List<String> fileNames = util.getAllFilesNameInFolder(publicProperty.getImagePath() + "BT/" + hsk);
 			for (String fileName : fileNames) {
 				if (fileName.substring(0, fileName.lastIndexOf(".")).trim().equalsIgnoreCase(imageName.trim())) {
 					if (template.trim().equals("")) {
-						result = imageExercisePath.replace("{hsk}", hsk) + fileName;
+						result = imageProperty.getPathExercise().replace("{hsk}", hsk) + fileName;
 					} else {
-						result = template.replace(IMAGE_SOURCE_TEMP, imageExercisePath.replace("{hsk}", hsk) + fileName);
+						result = template.replace(IMAGE_SOURCE_TEMP,
+								imageProperty.getPathExercise().replace("{hsk}", hsk) + fileName);
 					}
 					break;
 				}
@@ -1060,12 +1000,12 @@ public class QuizService {
 		} catch (Exception e) {
 			return result;
 		}
-		
+
 		if (result.contains(IMAGE_SOURCE_TEMP)) {
 			Document doc = Jsoup.parse(result);
 			Elements eleImages = doc.select("img");
-			for(Element eleImage : eleImages) {
-				if(eleImage.attr("src").equals(IMAGE_SOURCE_TEMP)) {
+			for (Element eleImage : eleImages) {
+				if (eleImage.attr("src").equals(IMAGE_SOURCE_TEMP)) {
 					eleImage.parent().remove();
 				}
 			}
@@ -1172,7 +1112,7 @@ public class QuizService {
 				QuestionDescription tempQuestionDescription = (QuestionDescription) questionDescription.clone();
 				questionDescriptions.add(tempQuestionDescription);
 				util.writeToFile(util.objectToJSON(questionDescriptions),
-						lessonQuizPath + "/test-" + sheet.getSheetName().trim() + ".json");
+						lessonProperty.getQuizPath() + "/test-" + sheet.getSheetName().trim() + ".json");
 			}
 
 		} catch (IOException e) {
@@ -1235,17 +1175,15 @@ public class QuizService {
 
 		}
 	}
-	
+
 	public String countTests(String hsk) {
 		GetTestSummaryResponse response = new GetTestSummaryResponse();
 		response.setCountTests(quizDao.countTests());
-		PromoteSetting promoteSetting = new PromoteSetting();
-		promoteSetting.setHsk(Integer.valueOf(hsk));
-		List<PromoteSetting> results = baseDao.findByKey(promoteSetting);
+		List<PromoteSetting> results = promoteSettingRepository.findByHsk(Integer.valueOf(hsk));
 		if (!results.isEmpty()) {
 			response.setTotalTestByHsk(results.get(0).getTests());
 		}
-		
+
 		for (int i = 1; i <= response.getCountTests(); i++) {
 //			if (userRankingDao.isEligibleForPromoteTesting(userId, i)) {
 //				response.setCurrentEligibleTest(i);
@@ -1256,45 +1194,41 @@ public class QuizService {
 		}
 		return util.objectToJSON(response);
 	}
-	
+
 	public String getHistoryBy(String hsk, String lesson, QuestionType quesionType, Long userId) {
 		List<QuestionDescription> questionDescriptions = util
 				.jsonToListObject(quesionType.compareTo(QuestionType.TEST) == 0 ? getQuestionForTest(hsk + "-" + lesson)
 						: getQuestionForQuiz(hsk + "-" + lesson), QUESTION_DESCRIPTION_LIST_TYPE);
 		List<UserResult> userResults = new ArrayList<>();
-		UserResult userResult = new UserResult();
-		userResult.setUserId(userId);
-		userResult.setHsk(Integer.parseInt(hsk));
-		userResult.setTestLesson(Integer.parseInt(lesson));
-		userResult.setResultType(quesionType.name());
-		userResults = baseDao.findByKeySortBy(userResult, " id asc ");
+		userResults = userResultRepository.findByUserIdAndHskAndTestLessonAndResultTypeOrderByIdAsc(userId,
+				Integer.parseInt(hsk), Integer.parseInt(lesson), quesionType.name());
 		List<QuizResultResponse> responses = new ArrayList<>();
 		for (UserResult result : userResults) {
 			QuizResultResponse response = new QuizResultResponse();
 			response.setResultDetail(util.jsonToObject(result.getResultDetail(), ResultDetail.class));
 			responses.add(response);
 		}
-		if(!userResults.isEmpty()) {
+		if (!userResults.isEmpty()) {
 			responses.get(0).setQuestionDescription(questionDescriptions);
 		}
 		return util.objectToJSON(responses);
 	}
-	
+
 	public void uploadExerciseFile(InputStream inputStream, String hsk) {
 		try {
-			util.writeToFile(new XSSFWorkbook(inputStream), uploadExercisesPath + hsk +".xlsx");
+			util.writeToFile(new XSSFWorkbook(inputStream), uploadProperty.getExercisesPath() + hsk + ".xlsx");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		util.runShellScript(batchPath, executeUploadShellScript);
+		util.runShellScript(uploadProperty.getBatchPath(), executeProperty.getUploadShellScript());
 	}
-	
+
 	public void uploadTest(InputStream inputStream, String hsk) {
 		try {
-			util.writeToFile(new XSSFWorkbook(inputStream), uploadTestPath + hsk +".xlsx");
+			util.writeToFile(new XSSFWorkbook(inputStream), uploadProperty.getTestPath() + hsk + ".xlsx");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		util.runShellScript(batchPath, executeTestUploadShellScript);
+		util.runShellScript(uploadProperty.getBatchPath(), executeProperty.getTestUploadShellScript());
 	}
 }

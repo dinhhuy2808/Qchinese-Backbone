@@ -1,27 +1,18 @@
 package com.elearning.services;
 
-import static com.elearning.jerseyguice.constant.ElearningConstant.POPULAR_DICTIONARY_TAB;
-import static com.elearning.jerseyguice.constant.ElearningConstant.STANDART_DICTIONARY_TAB;
-import static com.elearning.jerseyguice.constant.QuestionType.QUIZ;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_DICTIONARY_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_EXECUTE_UPLOAD_SHELL_SCRIPT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_UPLOAD_DICTIONARY_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_EXECUTE_DICTIONARY_UPLOAD_SHELL_SCRIPT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_EXECUTE_SYNC_DICTIONARY_UPLOAD_SHELL_SCRIPT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_BATCH_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_DICTIONARY_AUDIO_PATH;
+import static com.elearning.constant.QuestionType.QUIZ;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.lang.Character.UnicodeBlock;
 import java.lang.reflect.Type;
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -34,75 +25,60 @@ import java.util.Vector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.elearning.jerseyguice.dao.BaseDao;
-import com.elearning.jerseyguice.dao.DictionaryDao;
-import com.elearning.jerseyguice.model.APIResponse;
-import com.elearning.jerseyguice.model.Dictionary;
-import com.elearning.jerseyguice.model.GetCourseDicRequest;
-import com.elearning.jerseyguice.model.GetUserDictionaryResponse;
-import com.elearning.jerseyguice.model.LessonDictionary;
-import com.elearning.jerseyguice.model.UserDictionary;
-import com.elearning.jerseyguice.model.UserResult;
-import com.elearning.jerseyguice.model.DTO.StringListDTO;
-import com.elearning.jerseyguice.model.DTO.UserDictionaryDTO;
-import com.elearning.jerseyguice.model.DTO.UserDictionaryDatatableResponse;
-import com.elearning.jerseyguice.model.Request.DatatableParamHolder;
-import com.elearning.util.Util;
-import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
-import com.opencsv.CSVReader;
-
-import io.jsonwebtoken.lang.Strings;
-
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.stereotype.Service;
 
+import com.elearning.configuration.property.DictionaryProperty;
+import com.elearning.configuration.property.ExecuteProperty;
+import com.elearning.configuration.property.UploadProperty;
+import com.elearning.dao.DictionaryDao;
+import com.elearning.dto.StringListDTO;
+import com.elearning.dto.UserDictionaryDTO;
+import com.elearning.dto.UserDictionaryDatatableResponse;
+import com.elearning.entity.Dictionary;
+import com.elearning.entity.LessonDictionary;
+import com.elearning.entity.UserDictionary;
+import com.elearning.entity.UserResult;
+import com.elearning.model.APIResponse;
+import com.elearning.model.GetCourseDicRequest;
+import com.elearning.repository.DictionaryRepository;
+import com.elearning.repository.LessonDictionaryRepository;
+import com.elearning.repository.UserDictionaryRepository;
+import com.elearning.repository.UserResultRepository;
+import com.elearning.request.DatatableParamHolder;
+import com.elearning.util.Util;
+import com.google.gson.reflect.TypeToken;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
 public class DictionaryService {
-	@Inject
-	@Named(BIND_DICTIONARY_PATH)
-	private String dictionaryPath;
+	
+	private final Util util;
+	
+	private final DictionaryDao dictionaryDao;
 
-	@Inject
-	@Named(BIND_DICTIONARY_AUDIO_PATH)
-	private String dictionaryAudioPath;
-	
-	@Inject
-	@Named(BIND_EXECUTE_DICTIONARY_UPLOAD_SHELL_SCRIPT)
-	private String executeDictionaryUploadShellScript;
-	
-	@Inject
-	@Named(BIND_EXECUTE_SYNC_DICTIONARY_UPLOAD_SHELL_SCRIPT)
-	private String executeSyncDictionaryUploadShellScript;
-	
-	@Inject
-	@Named(BIND_UPLOAD_DICTIONARY_PATH)
-	private String uploadDictionaryPath;
-	
-	@Inject
-	@Named(BIND_BATCH_PATH)
-	private String batchPath;
-	
-	@Inject
-	Util util;
-	
-	@Inject
-	BaseDao baseDao;
-	
-	@Inject
-	DictionaryDao dictionaryDao;
+	private final UploadProperty uploadProperty;
+	private final ExecuteProperty executeProperty;
+	private final DictionaryProperty dictionaryProperty;
+	private final DictionaryRepository dictionaryRepository;
+	private final UserDictionaryRepository userDictionaryRepository;
+	private final LessonDictionaryRepository lessonDictionaryRepository;
+	private final UserResultRepository userResultRepository;
 
-	private static final Type WORRDS_TYPE = new TypeToken<ArrayList<Integer>>() {
+	private static final Type WORRDS_TYPE = new TypeToken<ArrayList<Long>>() {
 	}.getType();
 
 	public boolean addDataDictionary2(InputStream inputExcelStream) {
 		try {
-			util.writeToFile(new XSSFWorkbook(inputExcelStream), uploadDictionaryPath +"dictionary.xlsx");
+			util.writeToFile(new XSSFWorkbook(inputExcelStream), uploadProperty.getDictionaryPath() +"dictionary.xlsx");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		util.runShellScript(batchPath, executeDictionaryUploadShellScript);
+		util.runShellScript(uploadProperty.getBatchPath(), executeProperty.getDictionaryUploadShellScript());
 		return true;
 	}
 
@@ -115,7 +91,8 @@ public class DictionaryService {
 			XSSFSheet sheet = workbook.getSheetAt(0);
 			Iterator<Row> rowIterator = sheet.iterator();
 			int count = 0;
-			dictionaryDao.deleteAllWords();
+			dictionaryRepository.deleteAll();
+			dictionaryRepository.alterSetAutoIncrementToOne();
 			List<Dictionary> dics = new ArrayList<Dictionary>();
 			int lastRow = sheet.getLastRowNum();
 			for (int i = 1; i <= lastRow; i++) {
@@ -137,7 +114,7 @@ public class DictionaryService {
 
 			}
 			if (!dics.isEmpty()) {
-				inserted = baseDao.addList(dics);
+				inserted = dictionaryRepository.saveAll(dics).size() == dics.size();
 			}
 		} catch (IOException | NullPointerException e) {
 			// TODO Auto-generated catch block
@@ -151,11 +128,11 @@ public class DictionaryService {
 	public String syncWordWithLesson2(InputStream inputExcelStream) {
 		APIResponse response = new APIResponse();
 		try {
-			util.writeToFile(new XSSFWorkbook(inputExcelStream), uploadDictionaryPath +"dictionary.xlsx");
+			util.writeToFile(new XSSFWorkbook(inputExcelStream), uploadProperty.getDictionaryPath() +"dictionary.xlsx");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		util.runShellScript(batchPath, executeSyncDictionaryUploadShellScript);
+		util.runShellScript(uploadProperty.getBatchPath(),executeProperty.getSyncDictionaryUploadShellScript());
 
 		response.setCode(200);
 		response.setMessage("Upload done !!!");
@@ -213,24 +190,21 @@ public class DictionaryService {
 	}
 
 	public List<Dictionary> getWordsWith(int page) {
-
-		return dictionaryDao.getWordsWithPaging(page * 30);
+		return dictionaryRepository.getWordsWithPaging(page * 30);
 	}
 
 	public List<Dictionary> findWordsByKeyWord(String keyWord) {
 
-		return dictionaryDao.findWords(keyWord);
+		return dictionaryRepository.findByKeyWord(keyWord);
 	}
 
-	public int countWords() {
+	public long countWords() {
 
-		return dictionaryDao.countDictionary();
+		return dictionaryRepository.count();
 	}
 
 	public String translateByWord(String word) {
-		Dictionary dic = new Dictionary();
-		dic.setHantu(word);
-		List<Dictionary> dics = baseDao.findByKey(dic);
+		List<Dictionary> dics = dictionaryRepository.findByHantu(word);
 		return dics.isEmpty() ? "" : util.objectToJSON(dics.get(0));
 	}
 
@@ -239,15 +213,15 @@ public class DictionaryService {
 		userDictionary.setTab(tab);
 		userDictionary.setUserId(user_id);
 		userDictionary.setPlace(place);
-		List<UserDictionary> userDictionaries = baseDao.findByKey(userDictionary);
-		if (userDictionaries.isEmpty()) {
-			userDictionary.setCreateDate(Integer.parseInt(util.getCurrentDate()));
+		if (userDictionaryRepository.countByTabAndUserIdAndPlace(tab, user_id, place) == 0L) {
+			userDictionary.setCreateDate(LocalDateTime.now());
 
 			userDictionary.setWordId(String.valueOf(String.join(",", ids)));
 			userDictionary.setPlace(place);
-			baseDao.add(userDictionary);
+			userDictionaryRepository.save(userDictionary);
 		} else {
 			List<String> currentWordIds = new ArrayList<>();
+			List<UserDictionary> userDictionaries = userDictionaryRepository.findByTabAndUserIdAndPlace(tab, user_id, place);
 			userDictionaries.stream().forEach(userDic -> {
 				List<String> words = Arrays.asList(userDic.getWordId().split(","));
 				currentWordIds.addAll(words);
@@ -261,8 +235,8 @@ public class DictionaryService {
 			userDictionary = userDictionaries.get(0);
 			userDictionary.setWordId(userDictionary.getWordId() + (ids.isEmpty() ? "" : ("," + String.join(",", ids))));
 			userDictionary.setPlace(place);
-			userDictionary.setCreateDate(Integer.parseInt(util.getCurrentDate()));
-			baseDao.updateByInputKey(userDictionary, Arrays.asList("userid", "tab", "place"));
+			userDictionary.setCreateDate(LocalDateTime.now());
+			userDictionaryRepository.save(userDictionary);
 		}
 		return "true";
 	}
@@ -279,13 +253,13 @@ public class DictionaryService {
 			userDictionary.setTab(tab);
 			userDictionary.setUserId(user_id);
 			userDictionary.setPlace(pair.getKey().isEmpty()? place: pair.getKey());
-			List<UserDictionary> userDictionaries = baseDao.findByKey(userDictionary);
+			List<UserDictionary> userDictionaries = userDictionaryRepository.findByTabAndUserIdAndPlace(tab, user_id, place);
 
 			if (userDictionaries.isEmpty()) {
-				userDictionary.setCreateDate(Integer.parseInt(util.getCurrentDate()));
+				userDictionary.setCreateDate(LocalDateTime.now());
 
 				userDictionary.setWordId(String.valueOf(String.join(",", ids)));
-				baseDao.add(userDictionary);
+				userDictionaryRepository.save(userDictionary);
 			} else {
 				List<String> currentWordIds = new ArrayList<>();
 				userDictionaries.stream().forEach(userDic -> {
@@ -300,8 +274,8 @@ public class DictionaryService {
 				).collect(Collectors.toList());
 				userDictionary = userDictionaries.get(0);
 				userDictionary.setWordId(userDictionary.getWordId() + (ids.isEmpty() ? "" : ("," + String.join(",", ids))));
-				userDictionary.setCreateDate(Integer.parseInt(util.getCurrentDate()));
-				baseDao.updateByInputKey(userDictionary, Arrays.asList("userid", "tab", "place"));
+				userDictionary.setCreateDate(LocalDateTime.now());
+				userDictionaryRepository.save(userDictionary);
 			}
 		}
 		
@@ -375,12 +349,8 @@ public class DictionaryService {
 	// }
 
 	public String getCourseDictionary(GetCourseDicRequest request) {
-		LessonDictionary lessonDictionary = new LessonDictionary();
-		lessonDictionary.setHsk(request.getHsk());
-		lessonDictionary.setLesson(request.getLesson());
-		lessonDictionary.setPart(request.getPart());
-		lessonDictionary.setStandart(1);
-		List<LessonDictionary> dics = baseDao.findByKeySortBy(lessonDictionary, " `order` asc ");
+		List<LessonDictionary> dics = lessonDictionaryRepository.findAllByHskAndLessonAndPartAndStandartOrderByOrderAsc(
+				request.getHsk(), request.getLesson(), request.getPart(), 1);
 		return util.objectToJSON(dics.stream().map(lesDic -> {
 			Dictionary dic = new Dictionary();
 			dic.setHantu(lesDic.getHantu());
@@ -399,7 +369,7 @@ public class DictionaryService {
 		UserDictionary userDictionary = new UserDictionary();
 		userDictionary.setUserId(user_id);
 		userDictionary.setTab(tab);
-		return util.objectToJSON(baseDao.deleteByGivenValue(userDictionary));
+		return util.objectToJSON(userDictionaryRepository.deleteByUserIdAndTab(user_id, tab) > 0 ?true:false);
 	}
 
 	public String savePracticeWords(List<UserDictionaryDTO> wordsId, Long userId) {
@@ -412,20 +382,22 @@ public class DictionaryService {
 			userResult.setHsk(Integer.parseInt(key.split("-")[0]));
 			userResult.setTestLesson(Integer.parseInt(key.split("-")[1]));
 			userResult.setResultType(QUIZ.name());
-			List<UserResult> userResults = baseDao.findByKey(userResult);
+			List<UserResult> userResults = userResultRepository.findByUserIdAndHskAndTestLessonAndResultType(userId,
+					userResult.getHsk(), userResult.getTestLesson(), QUIZ.name());
 			if (userResults.isEmpty()) {
 				userResult.setWordAmount(wordsId.size());
 				userResult.setWordDetail(
 						util.objectToJSON(wordsId.stream().map(dic -> dic.getWordId()).collect(Collectors.toList())));
-				baseDao.add(userResult);
+				userResultRepository.save(userResult);
 			} else {
-				List<Integer> currentWords = util.jsonToListObject(userResults.get(0).getWordDetail(), WORRDS_TYPE);
-				Set<Integer> newWords = Stream
+				userResult = userResults.get(0);
+				List<Long> currentWords = util.jsonToListObject(userResults.get(0).getWordDetail(), WORRDS_TYPE);
+				Set<Long> newWords = Stream
 						.of(currentWords, wordsId.stream().map(dic -> dic.getWordId()).collect(Collectors.toList()))
 						.flatMap(item -> item.stream()).collect(Collectors.toSet());
 				userResult.setWordAmount(newWords.size());
 				userResult.setWordDetail(util.objectToJSON(newWords));
-				baseDao.updateByInputKey(userResult, Arrays.asList("userid", "hsk", "testlesson", "resulttype"));
+				userResultRepository.save(userResult);
 			}
 		}
 		return "200";
@@ -440,21 +412,23 @@ public class DictionaryService {
 			userResult.setHsk(Integer.parseInt(pair.getKey().split("-")[0]));
 			userResult.setTestLesson(Integer.parseInt(pair.getKey().split("-")[1]));
 			userResult.setResultType(QUIZ.name());
-			List<UserResult> userResults = baseDao.findByKey(userResult);
+			List<UserResult> userResults = userResultRepository.findByUserIdAndHskAndTestLessonAndResultType(userId,
+					userResult.getHsk(), userResult.getTestLesson(), QUIZ.name());
 			if (userResults.isEmpty()) {
 				userResult.setWordAmount(pair.getValue().size());
 				userResult.setWordDetail(
 						util.objectToJSON(pair.getValue().stream().map(dic -> dic.getWordId()).collect(Collectors.toList())));
 				userResult.setResultDetail("{}");
-				baseDao.add(userResult);
+				userResultRepository.save(userResult);
 			} else {
-				List<Integer> currentWords = util.jsonToListObject(userResults.get(0).getWordDetail(), WORRDS_TYPE);
-				Set<Integer> newWords = Stream
+				userResult = userResults.get(0);
+				List<Long> currentWords = util.jsonToListObject(userResults.get(0).getWordDetail(), WORRDS_TYPE);
+				Set<Long> newWords = Stream
 						.of(currentWords, pair.getValue().stream().map(dic -> dic.getWordId()).collect(Collectors.toList()))
 						.flatMap(item -> item.stream()).collect(Collectors.toSet());
 				userResult.setWordAmount(newWords.size());
 				userResult.setWordDetail(util.objectToJSON(newWords));
-				baseDao.updateByInputKey(userResult, Arrays.asList("userid", "hsk", "testlesson", "resulttype"));
+				userResultRepository.save(userResult);
 			}
 		}
 		return "200";
@@ -467,12 +441,12 @@ public class DictionaryService {
 		int c;
 		FileInputStream fis = null;
 		try {
-			fis = new FileInputStream(new File(dictionaryAudioPath + word + ".mp3"));
+			fis = new FileInputStream(new File(dictionaryProperty.getAudioPath() + word + ".mp3"));
 			v.add(fis);
 		} catch (IOException e) {
 			for(String hantu : hantus) {
 				try {
-					v.add(new FileInputStream(new File(dictionaryAudioPath+hantu+".mp3")));
+					v.add(new FileInputStream(new File(dictionaryProperty.getAudioPath()+hantu+".mp3")));
 				} catch (FileNotFoundException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
@@ -511,12 +485,12 @@ public class DictionaryService {
 	
 	private void checkExistAndDownloadByWord(String word, List<String> hantus) {
 		try {
-			FileInputStream file = new FileInputStream(new File(dictionaryAudioPath+word+".mp3"));
+			FileInputStream file = new FileInputStream(new File(dictionaryProperty.getAudioPath()+word+".mp3"));
 		} catch (FileNotFoundException e) {
 			try {
 				URL url = new URL("https://vtudien.com/doc/trung/" + word + ".mp3");
 				InputStream inputStream = url.openStream();
-				FileOutputStream fileOutputStream = new FileOutputStream(new File(dictionaryAudioPath+word+".mp3"));
+				FileOutputStream fileOutputStream = new FileOutputStream(new File(dictionaryProperty.getAudioPath()+word+".mp3"));
 
 				int c;
 
@@ -535,12 +509,12 @@ public class DictionaryService {
 	}
 	private void checkExistAndDownloadByChar(String hantu) {
 		try {
-			FileInputStream file = new FileInputStream(new File(dictionaryAudioPath+hantu+".mp3"));
+			FileInputStream file = new FileInputStream(new File(dictionaryProperty.getAudioPath()+hantu+".mp3"));
 		} catch (FileNotFoundException e) {
 			try {
 				URL url = new URL("https://vtudien.com/doc/trung/" + hantu + ".mp3");
 				InputStream inputStream = url.openStream();
-				FileOutputStream fileOutputStream = new FileOutputStream(new File(dictionaryAudioPath+hantu+".mp3"));
+				FileOutputStream fileOutputStream = new FileOutputStream(new File(dictionaryProperty.getAudioPath()+hantu+".mp3"));
 
 				int c;
 
@@ -555,22 +529,6 @@ public class DictionaryService {
 				System.out.println(e1.getMessage());
 			}
 		}
-	}
-	public static void main(String[] args) {
-
-		String csvFile = "C:\\TaxProject\\upload\\dictionary\\dictionary.csv";
-
-		CSVReader reader = null;
-		try {
-			reader = new CSVReader(new FileReader(csvFile));
-			String[] line;
-			while ((line = reader.readNext()) != null) {
-				System.out.println(line[0] + " - " + line[1] + " - " + line[2] + " - " + line[3] + " - " + line[4]);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
 	}
 
 }

@@ -1,9 +1,9 @@
 package com.nhs3108.utils;
 
-import com.nhs3108.models.News;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import com.elearning.models.News;
 
 /**
  * Created by nhs3108 on 4/2/17.

@@ -1,13 +1,5 @@
 package com.elearning.services;
 
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_AUDIO_PATH_FOR_LESSON;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_AUDIO_URL_FOR_HSK;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_COURSE_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_COURSE_INPUT_PATH;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ_INPUT;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_PUBLIC_AUDIO_PATH;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -36,64 +28,39 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.stereotype.Service;
 
-import com.elearning.jerseyguice.dao.BaseDao;
-import com.elearning.jerseyguice.dao.CourseDao;
-import com.elearning.jerseyguice.model.Course;
-import com.elearning.jerseyguice.model.CourseHolder;
-import com.elearning.jerseyguice.model.GetCourseResponse;
-import com.elearning.jerseyguice.model.Lesson;
-import com.elearning.jerseyguice.model.LessonForInput;
-import com.elearning.jerseyguice.model.LessonPart;
-import com.elearning.jerseyguice.model.LessonPartForInput;
+import com.elearning.configuration.property.AudioProperty;
+import com.elearning.configuration.property.CourseProperty;
+import com.elearning.configuration.property.LessonProperty;
+import com.elearning.configuration.property.PublicProperty;
+import com.elearning.entity.Course;
+import com.elearning.model.CourseHolder;
+import com.elearning.model.GetCourseResponse;
+import com.elearning.model.Lesson;
+import com.elearning.model.LessonForInput;
+import com.elearning.model.LessonPart;
+import com.elearning.model.LessonPartForInput;
+import com.elearning.repository.CourseRepository;
 import com.elearning.util.Util;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 import com.mysql.jdbc.StringUtils;
 
-@Singleton
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
 public class CourseService {
-	@Inject
-	@Named(BIND_COURSE_PATH)
-	private String coursePath;
 	
-	@Inject
-	@Named(BIND_COURSE_INPUT_PATH)
-	private String courseInputPath;
-	
-	@Inject
-	@Named(BIND_LESSON_QUIZ)
-	private String lessonQuizPath;
-	
-	@Inject
-	@Named(BIND_LESSON_QUIZ_INPUT)
-	private String lessonQuizInputPath;
-	
-	@Inject
-	@Named(BIND_AUDIO_URL_FOR_HSK)
-	private String audioUrl;
-	
-	@Inject
-	@Named(BIND_AUDIO_PATH_FOR_LESSON)
-	private String audioLessonPath;
-	
-	@Inject
-	@Named(BIND_PUBLIC_AUDIO_PATH)
-	private String publicAudioPath;
 	private static final String HSK = "{hsk}";
-	private static final String LESSON = "{lesson}";
-	private static final String PART = "{part}";
-	private static final String DRIVE_URL = "https://f.vdrive.vn";
-	@Inject
-	Util util;
-	@Inject
-	BaseDao baseDao;
-	@Inject
-	CourseDao courseDao;
-	private boolean inBold = false;
-	private boolean inItalic = false;
 	private Integer idCount = 0;
+	
+	private final CourseProperty courseProperty;
+	private final LessonProperty lessonProperty;
+	private final AudioProperty audioProperty;
+	private final PublicProperty publicProperty;
+	private final Util util;
+	private final CourseRepository courseRepository;
+	
 	public void generateCourseHtmlDetail(InputStream inputExcelStream, int hsk) {
 		try {
 			CourseHolder courseHolder = new CourseHolder();
@@ -101,22 +68,24 @@ public class CourseService {
 			List<Lesson> lessions = new ArrayList<>();
 			XSSFWorkbook workbook = new XSSFWorkbook(inputExcelStream);
 			Course course = new Course();
-			course.setHsk(hsk);
-			baseDao.deleteByGivenValue(course);
+			courseRepository.deleteByHsk(hsk);
 			for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
 				XSSFSheet sheet = workbook.getSheetAt(i);
 				// lessions.add(getLession(sheet));
 				Lesson lesson = getLession(sheet);
 				String json = util.objectToJSON(lesson);
-				util.writeToFile(json, coursePath + "/" + "hsk-" + hsk + "-lesson-" + sheet.getSheetName() + ".json");
+				util.writeToFile(json, courseProperty.getPath() + "/" + "hsk-" + hsk + "-lesson-" + sheet.getSheetName() + ".json");
 				course = new Course();
 				course.setHsk(hsk);
 				course.setLesson(new String(sheet.getSheetName().getBytes(StandardCharsets.UTF_8)));
 				course.setTitle(lesson.getTitle());
-				if (baseDao.findByKey(course).size() > 0) {
-					baseDao.updateByInputKey(course, Arrays.asList("hsk", "lesson"));
+				
+				if (courseRepository.findAll().size() > 0) {
+					course = courseRepository.findByHskAndLesson(hsk, course.getLesson());
+					course.setTitle(lesson.getTitle());
+					courseRepository.save(course);
 				} else {
-					baseDao.add(course);
+					courseRepository.save(course);
 				}
 				saveTypingHtml(lesson, String.valueOf(hsk), course.getLesson());
 			}
@@ -145,7 +114,7 @@ public class CourseService {
 		}
 		lessonForInput.setLessionParts(lessonPartForInputs);
 		String json = util.objectToJSON(lessonForInput);
-		util.writeToFile(json, courseInputPath + "/" + "hsk-" + hsk + "-lesson-" + lessonNo + ".json");
+		util.writeToFile(json, courseProperty.getInputPath() + "/" + "hsk-" + hsk + "-lesson-" + lessonNo + ".json");
 	}
 
 	
@@ -222,7 +191,7 @@ public class CourseService {
 				}
 				lession.setLessionParts(parts);
 				lession.setTitle(td.get(0).html());
-				util.writeToFile(util.objectToJSON(lession), coursePath + "/" + "hsk-" + hsk + "-lesson-"
+				util.writeToFile(util.objectToJSON(lession), courseProperty.getPath() + "/" + "hsk-" + hsk + "-lesson-"
 						+ (lesson) + ".json");
 				Course course = new Course();
 				course.setHsk(hsk);
@@ -232,10 +201,12 @@ public class CourseService {
 				Elements elementsRp = td.get(0).getElementsByTag("rp");
 				elementsRp.remove();
 				course.setTitle(td.get(0).text());
-				if (baseDao.findByGivenKey(course, "hsk,lesson").size() > 0) {
-					baseDao.updateByInputKey(course, Arrays.asList("hsk", "lesson"));
+				if (courseRepository.countByHskAndLesson(hsk, course.getLesson()) > 0) {
+					course = courseRepository.findByHskAndLesson(hsk, course.getLesson());
+					course.setTitle(td.get(0).text());
+					courseRepository.save(course);
 				} else {
-					baseDao.add(course);
+					courseRepository.save(course);
 				}
 				saveTypingHtml(lession, String.valueOf(hsk), course.getLesson());
 			}
@@ -304,12 +275,10 @@ public class CourseService {
 	}
 
 	public String getLesson(int hsk, String lesson) {
-		String json = util.getJsonStringFromFile(coursePath + "/" + "hsk-" + hsk + "-lesson-" + lesson + ".json");
+		String json = util.getJsonStringFromFile(courseProperty.getPath() + "/" + "hsk-" + hsk + "-lesson-" + lesson + ".json");
 		Lesson currentLesson = util.jsonToObject(json, Lesson.class);
 		currentLesson = getLessonWithAudioForPart(currentLesson, hsk, lesson);
-		Course course = new Course();
-		course.setHsk(hsk);
-		List<Course> courses = baseDao.findByKey(course);
+		List<Course> courses = courseRepository.findByHsk(hsk);
 		List<String> lessons = courses.stream().map(item -> item.getLesson()).collect(Collectors.toList());
 		int index = lessons.indexOf(lesson);
 		GetCourseResponse getCourseResponse = new GetCourseResponse();
@@ -317,36 +286,36 @@ public class CourseService {
 		getCourseResponse.setNextLesson(index == lessons.size() - 1 ? "" : lessons.get(index + 1));
 		getCourseResponse.setPreviousLesson(index == 0 ? "" : lessons.get(index - 1));
 		String jsonInput = util
-				.getJsonStringFromFile(courseInputPath + "/" + "hsk-" + hsk + "-lesson-" + lesson + ".json");
+				.getJsonStringFromFile(courseProperty.getInputPath() + "/" + "hsk-" + hsk + "-lesson-" + lesson + ".json");
 		getCourseResponse.setLessonForInput(util.jsonToObject(jsonInput, LessonForInput.class));
 		return util.objectToJSON(getCourseResponse);
 	}
 
 	public String getAllCourses() {
-		List<Course> courses = courseDao.getAllCourses();
+		List<Course> courses = courseRepository.getAllCourses();
 		return util.objectToJSON(courses);
 	}
 
 	public String getCourseSumaryBy(int hsk) {
 		Course course = new Course();
 		course.setHsk(hsk);
-		List<Course> courses = baseDao.findByKey(course);
+		List<Course> courses = courseRepository.findByHsk(hsk);
 		return util.objectToJSON(courses);
 	}
 
 	public String getQuizBy(String hsk, String lesson) {
-		return util.getJsonStringFromFile(lessonQuizPath + "/" + "hsk-" + hsk + "-" + lesson + ".json");
+		return util.getJsonStringFromFile(lessonProperty.getQuizPath() + "/" + "hsk-" + hsk + "-" + lesson + ".json");
 	}
 
 	public String getQuizInputBy(String hsk, String lesson) {
-		return util.getJsonStringFromFile(lessonQuizInputPath + "/" + "hsk-" + hsk + "-" + lesson + ".json");
+		return util.getJsonStringFromFile(lessonProperty.getQuizInputPath() + "/" + "hsk-" + hsk + "-" + lesson + ".json");
 	}
 	private Lesson getLessonWithAudioForPart(Lesson lesson, int hsk, String less) {
 		String lessonKey = String.format("%02d", Integer.parseInt(less));
 		Lesson returnLesson = lesson;
-		String url = audioLessonPath;
+		String url = audioProperty.getPathLesson();
 		url = url.replace(HSK, String.valueOf(hsk));
-		List<String> filesName = util.getAllFilesNameInFolder(publicAudioPath+"BH/"+hsk);
+		List<String> filesName = util.getAllFilesNameInFolder(publicProperty.getAudioPath()+"BH/"+hsk);
 		for (LessonPart part : returnLesson.getLessionParts()) {
 			
 			for(String fileName:filesName) {

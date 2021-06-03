@@ -4,36 +4,30 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import com.elearning.jerseyguice.dao.BaseDao;
+import org.springframework.stereotype.Service;
+
+import com.elearning.configuration.property.LessonProperty;
+import com.elearning.dao.BaseDao;
 import com.elearning.util.Util;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ;;
+import lombok.RequiredArgsConstructor;;
 
-@Singleton
+@Service
+@RequiredArgsConstructor
 public class UploadService {
-	@Inject
-	@Named(BIND_LESSON_QUIZ)
-	private String lessonQuizPath;
-	@Inject
-	Util util;
-	@Inject
-	BaseDao baseDao;
+	private final LessonProperty lessonProperty;
 
 	public boolean uploadLessonQuiz(String fileName) {
-		String fileZip = lessonQuizPath + "\\"+fileName;
+		String fileZip = lessonProperty.getQuizPath() + "\\"+fileName;
 		
 		ZipEntry zipEntry;
 		try {
 			ZipInputStream zis = new ZipInputStream(new FileInputStream(fileZip));
 			zipEntry = zis.getNextEntry();
-			File destDir = new File(lessonQuizPath);
+			File destDir = new File(lessonProperty.getQuizPath());
 			byte[] buffer = new byte[1024];
 			while (zipEntry != null) {
 				File newFile = newFile(destDir, zipEntry);

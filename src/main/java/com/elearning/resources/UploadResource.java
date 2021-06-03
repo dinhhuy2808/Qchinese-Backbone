@@ -5,56 +5,40 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
-import com.elearning.jerseyguice.model.Answer;
-import com.elearning.services.UploadService;
-import com.elearning.util.Util;
-import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.name.Named;
-import com.sun.jersey.core.header.FormDataContentDisposition;
-import com.sun.jersey.multipart.FormDataParam;
-import static com.github.reap.rest.guice.BindJerseyPropertiesModule.BIND_LESSON_QUIZ;;
+import com.elearning.configuration.property.LessonProperty;
+import com.elearning.services.UploadService;;
 
-@Path("/upload")
-@Singleton
+@RequestMapping("/upload")
+@RestController
 public class UploadResource {
-	@Inject
-	@Named(BIND_LESSON_QUIZ)
-	private String lessonQuizPath;
+	@Autowired
+	private LessonProperty lessonProperty;
 	
-	@Inject
-	Util util;
-
-	@Inject
-	UploadService uploadService;
-	private static final Type ANWSER_LIST_TYPE = new TypeToken<ArrayList<Answer>>(){}.getType();
+	@Autowired
+	private UploadService uploadService;
 	
-	@POST
-	@Path("v1/upload-lesson-quiz/zip")
-	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	public Response uploadImage(
-		@FormDataParam("fileUpload") InputStream uploadedInputStream,
-		@FormDataParam("fileUpload") FormDataContentDisposition fileDetail,
-		@PathParam("hsk") int hsk) {
+	@PostMapping("v1/upload-lesson-quiz/zip")
+	public ResponseEntity<String> uploadImage(
+		@RequestParam("fileUpload") MultipartFile uploadedInputStream,
+		@PathVariable("hsk") int hsk) throws IOException {
 
-		String uploadedFileLocation =  fileDetail.getFileName();
+		String uploadedFileLocation =  uploadedInputStream.getOriginalFilename();
 		// save it
-		writeToFile(uploadedInputStream, lessonQuizPath+"\\"+uploadedFileLocation);
+		writeToFile(uploadedInputStream.getInputStream(), lessonProperty.getQuizPath()+"\\"+uploadedFileLocation);
 		uploadService.uploadLessonQuiz(uploadedFileLocation);
 		String output = "File uploaded to : " + uploadedFileLocation;
 		
-		return Response.status(200).entity(output).build();
+		return ResponseEntity.ok().body(output);
 
 	}
 	// save uploaded file to new location

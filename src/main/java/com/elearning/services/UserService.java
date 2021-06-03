@@ -1,6 +1,7 @@
 package com.elearning.services;
 
 import java.lang.reflect.Type;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -8,56 +9,55 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.poi.util.StringUtil;
+import org.springframework.stereotype.Service;
 
-import com.elearning.jerseyguice.constant.ElearningConstant;
-import com.elearning.jerseyguice.constant.QuestionType;
-import com.elearning.jerseyguice.dao.BaseDao;
-import com.elearning.jerseyguice.dao.FriendsDao;
-import com.elearning.jerseyguice.dao.UserRankingDao;
-import com.elearning.jerseyguice.jwt.JWTUtil;
-import com.elearning.jerseyguice.model.APIResponse;
-import com.elearning.jerseyguice.model.ChangePasswordRequest;
-import com.elearning.jerseyguice.model.Friends;
-import com.elearning.jerseyguice.model.FriendsResponse;
-import com.elearning.jerseyguice.model.GetUserInfoResponse;
-import com.elearning.jerseyguice.model.LoginResponse;
-import com.elearning.jerseyguice.model.QuestionDescription;
-import com.elearning.jerseyguice.model.QuizResultResponse;
-import com.elearning.jerseyguice.model.ResultDetail;
-import com.elearning.jerseyguice.model.Rooms;
-import com.elearning.jerseyguice.model.SubjectHolderForJWT;
-import com.elearning.jerseyguice.model.User;
-import com.elearning.jerseyguice.model.UserRanking;
-import com.elearning.jerseyguice.model.UserResult;
+import com.elearning.constant.ElearningConstant;
+import com.elearning.constant.QuestionType;
+import com.elearning.dao.BaseDao;
+import com.elearning.dao.FriendsDao;
+import com.elearning.dao.UserRankingDao;
+import com.elearning.entity.Friends;
+import com.elearning.entity.Rooms;
+import com.elearning.entity.User;
+import com.elearning.entity.UserResult;
+import com.elearning.jwt.JWTUtil;
+import com.elearning.model.APIResponse;
+import com.elearning.model.ChangePasswordRequest;
+import com.elearning.model.GetUserInfoResponse;
+import com.elearning.model.LoginResponse;
+import com.elearning.model.QuestionDescription;
+import com.elearning.model.QuizResultResponse;
+import com.elearning.model.ResultDetail;
+import com.elearning.model.SubjectHolderForJWT;
+import com.elearning.repository.FriendsRepository;
+import com.elearning.repository.RoomsRepository;
+import com.elearning.repository.UserRepository;
+import com.elearning.repository.UserResultRepository;
 import com.elearning.util.Util;
 import com.google.gson.reflect.TypeToken;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
-import io.jsonwebtoken.lang.Strings;
+import lombok.RequiredArgsConstructor;
 
-@Singleton
+@Service
+@RequiredArgsConstructor
 public class UserService {
 	private static final Type QUESTION_DESCRIPTION_LIST_TYPE = new TypeToken<ArrayList<QuestionDescription>>() {
 	}.getType();
-	@Inject
-	Util util;
-	@Inject
-	BaseDao baseDao;
-	@Inject
-	JWTUtil jwtUtil;
-	@Inject
-	QuizService quizService;
-	@Inject
-	UserRankingDao userRankingDao;
-	@Inject
-	FriendsDao friendsDao;
+	private final Util util;
+//	private final BaseDao baseDao;
+	private final JWTUtil jwtUtil;
+	private final QuizService quizService;
+	private final UserRankingDao userRankingDao;
+	private final FriendsDao friendsDao;
+	private final UserRepository userRepository;
+	private final FriendsRepository friendsRepository;
+	private final UserResultRepository userResultRepository;
+	private final RoomsRepository roomsRepository;
 
 	public String checkUserByPhone(String phone) {
 		User user = new User();
 		user.setPhone(phone);
-		if (StringUtils.isNotBlank(phone) && baseDao.findByKey(user).size() > 0) {
+		if (StringUtils.isNotBlank(phone) && userRepository.findByPhone(phone).size() > 0) {
 			return "true";
 		} else {
 			return "false";
@@ -67,12 +67,12 @@ public class UserService {
 	public String registerUser(User user, int method) {
 		User tempUser = new User();
 		tempUser.setPhone(user.getPhone());
-		if (method == ElearningConstant.NORMAL_LOGIN_METHOD && baseDao.findByKey(tempUser).size() > 0) {
+		if (method == ElearningConstant.NORMAL_LOGIN_METHOD && userRepository.findByPhone(user.getPhone()).size() > 0) {
 			return "201";
 		} else {
 			tempUser = new User();
 			tempUser.setEmail(user.getEmail());
-			if (baseDao.findByKey(tempUser).size() > 0) {
+			if (userRepository.findByEmail(user.getEmail()).size() > 0) {
 				return "202";
 			}
 		}
@@ -80,18 +80,17 @@ public class UserService {
 				: ElearningConstant.DEFAULT_PASSWORD_GOOGLE_LOGIN);
 		user.setPassword(hashedPassword);
 		user.setAccountType(2);
-		boolean flag = baseDao.add(user);
+		boolean flag = userRepository.save(user).getUserId() > 0;
 		return flag ? "200" : "203";
 
 	}
 
 	public String getUserInfo(Long userId) {
 		User user = new User();
-		user.setUser_id(userId);
-		user = (User) baseDao.findByKey(user).get(0);
+		user = userRepository.findById(userId).get();
 		user.setAccountType(null);
 		user.setPassword(null);
-		user.setUser_id(null);
+		user.setUserId(null);
 
 		GetUserInfoResponse response = new GetUserInfoResponse();
 		response.setUser(user);
@@ -99,10 +98,7 @@ public class UserService {
 		response.setTestResultDetail(getHistoryBy(QuestionType.TEST, userId));
 		response.setTotalResults(userRankingDao.getTotalResultBy(userId));
 		response.setRanks(userRankingDao.getRankBoard());
-		Friends friends = new Friends();
-		friends.setUserId(userId);
-		friends.setIsAccepped(true);
-		List<Friends> friendList = baseDao.findByKey(friends);
+		List<Friends> friendList = friendsRepository.findByUserIdAndIsAccepped(userId, true);
 		if (!friendList.isEmpty()) {
 			response.setFriendIds(friendList.stream().map(friend -> friend.getFriendId()).collect(Collectors.toList()));
 		}
@@ -111,10 +107,7 @@ public class UserService {
 
 	public List<QuizResultResponse> getHistoryBy(QuestionType quesionType, Long userId) {
 		List<UserResult> userResults = new ArrayList<>();
-		UserResult userResult = new UserResult();
-		userResult.setUserId(userId);
-		userResult.setResultType(quesionType.name());
-		userResults = baseDao.findByKeySortBy(userResult, " id desc ");
+		userResults =  userResultRepository.findByUserIdAndResultTypeOrderByIdDesc(userId, quesionType.name());
 		List<QuizResultResponse> responses = new ArrayList<>();
 		for (UserResult result : userResults) {
 			List<QuestionDescription> questionDescriptions = util.jsonToListObject(
@@ -142,8 +135,8 @@ public class UserService {
 		user.setPassword(hashedPassword);
 
 		List<User> users = method == ElearningConstant.NORMAL_LOGIN_METHOD
-				? baseDao.findByGivenKey(user, "phone,password")
-				: baseDao.findByGivenKey(user, "email,password");
+				? userRepository.findByPhoneAndPassword(user.getPhone(), hashedPassword)
+				: userRepository.findByEmailAndPassword(user.getEmail(), hashedPassword);
 
 		LoginResponse loginResponse = new LoginResponse();
 		if (!users.isEmpty()) {
@@ -153,7 +146,7 @@ public class UserService {
 			jwtSubjectHolder.setLoginMethod(method);
 			jwtSubjectHolder.setName(user.getName());
 			jwtSubjectHolder.setPhone(user.getPhone());
-			jwtSubjectHolder.setUser_id(user.getUser_id());
+			jwtSubjectHolder.setUserId(user.getUserId());
 			String jwtSubject = util.objectToJSON(jwtSubjectHolder);
 			long jwtTimeToLive = Long.parseLong("2592000000");
 			String jwt = jwtUtil.createJWT(jwtId, // claim = jti
@@ -182,8 +175,8 @@ public class UserService {
 			User user = new User();
 			String hashedPassword = util.getMd5(request.getPassword());
 			user.setPassword(hashedPassword);
-			user.setUser_id(request.getUserId());
-			List<User> users = baseDao.findByKey(user);
+			user.setUserId(request.getUserId());
+			List<User> users = userRepository.findByUserIdAndPassword(request.getUserId(), hashedPassword);
 			if (users.isEmpty()) {
 				response.setCode(202);
 				response.setMessage("Password không đúng");
@@ -191,8 +184,8 @@ public class UserService {
 				user = users.get(0);
 				hashedPassword = util.getMd5(request.getNewPassword());
 				user.setPassword(hashedPassword);
-				int count = baseDao.updateByInputKey(user, Arrays.asList("user_id"));
-				if (count > 0) {
+				user = userRepository.save(user);
+				if (user.getUserId() > 0) {
 					response.setCode(200);
 					response.setMessage("Success");
 				} else {
@@ -212,11 +205,11 @@ public class UserService {
 		} else {
 			User user = new User();
 			String hashedPassword = util.getMd5(request.getNewPassword());
-			user.setUser_id(request.getUserId());
-			user = (User) baseDao.findByKey(user).get(0);
+			user.setUserId(request.getUserId());
+			user = userRepository.findById(request.getUserId()).get();
 			user.setPassword(hashedPassword);
-			int count = baseDao.updateByInputKey(user, Arrays.asList("user_id"));
-			if (count > 0) {
+			user = userRepository.save(user);
+			if (user.getUserId() > 0) {
 				response.setCode(200);
 				response.setMessage("Success");
 			} else {
@@ -229,25 +222,19 @@ public class UserService {
 	
 	public void updateAvatar(Long userId, String avatar) {
 		User user = new User();
-		user.setUser_id(userId);
-		user = (User) baseDao.findByKey(user).get(0);
+		user.setUserId(userId);
+		user = userRepository.findById(userId).get();
 		user.setAvatar(avatar);
-		baseDao.updateByInputKey(user, Arrays.asList("user_id"));
+		userRepository.save(user);
 	}
 	
 	public void sendFriendRequest(Long userId, Long friendId) throws Exception {
 		Friends friends = new Friends();
 		friends.setUserId(userId);
 		friends.setFriendId(friendId);
-		if (baseDao.findByKey(friends).size() > 0) {
+		if (friendsRepository.countByUserIdAndFriendId(userId, friendId) > 0) {
 			throw new Exception("Already sent request?");
 		}
-		friends.setUserId(friendId);
-		friends.setFriendId(userId);
-		if (baseDao.findByKey(friends).size() > 0) {
-			throw new Exception("Already sent request?");
-		}
-
 		friendsDao.createFriendsRequest(userId, friendId, util.getKey());
 	}
 	
@@ -256,14 +243,14 @@ public class UserService {
 		friends.setUserId(userId);
 		friends.setFriendId(friendId);
 		friends.setIsAccepped(false);
-		List<Friends> friendsList = baseDao.findByKey(friends);
+		List<Friends> friendsList = friendsRepository.findByUserIdAndFriendIdAndIsAccepped(userId, friendId, false);
 		if (friendsList.isEmpty()) {
 			throw new Exception("Not have request.");
 		}
 		
 		friends = friendsList.get(0);
 		friends.setIsAccepped(true);
-		baseDao.updateByInputKey(friends, Arrays.asList("id"));
+		friendsRepository.save(friends);
 	}
 	
 	public String getFriends(Long userId) {
@@ -276,18 +263,12 @@ public class UserService {
 		Rooms rooms = new Rooms();
 		rooms.setRoomKey(roomKey);
 		rooms.setUserId(userId);
-		List<Rooms> friendsList = baseDao.findByKey(rooms);
-		if (!friendsList.isEmpty()) {
+		if (roomsRepository.countByRoomKeyAndUserId(roomKey, userId) > 0) {
 			throw new Exception("Already in group.");
 		} else {
-			rooms.setCreatedDate(new Date(System.currentTimeMillis()));
+			rooms.setCreatedDate(LocalDateTime.now());
 			rooms.setIsGroup(true);
-			baseDao.add(rooms);
-			
-			Rooms updateRooms = new Rooms();
-			updateRooms.setRoomKey(roomKey);
-			updateRooms.setIsGroup(true);
-			baseDao.updateByInputKey(updateRooms, Arrays.asList("roomkey"));
+			roomsRepository.save(rooms);
 		}
 	}
 }
