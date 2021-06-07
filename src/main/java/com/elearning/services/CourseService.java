@@ -43,7 +43,7 @@ import com.elearning.model.LessonPart;
 import com.elearning.model.LessonPartForInput;
 import com.elearning.repository.CourseRepository;
 import com.elearning.util.Util;
-import com.mysql.jdbc.StringUtils;
+import com.google.common.base.Strings;
 
 import lombok.RequiredArgsConstructor;
 
@@ -80,7 +80,7 @@ public class CourseService {
 				course.setLesson(new String(sheet.getSheetName().getBytes(StandardCharsets.UTF_8)));
 				course.setTitle(lesson.getTitle());
 				
-				if (courseRepository.findAll().size() > 0) {
+				if (courseRepository.countByHskAndLesson(hsk, course.getLesson()) > 0) {
 					course = courseRepository.findByHskAndLesson(hsk, course.getLesson());
 					course.setTitle(lesson.getTitle());
 					courseRepository.save(course);
@@ -229,7 +229,7 @@ public class CourseService {
 				} else {
 					XSSFRow row = (XSSFRow) rowIterator.next();
 					Cell cell0 = row.getCell(0);
-					if (cell0!=null && !StringUtils.isNullOrEmpty(cell0.toString())) {
+					if (cell0!=null && !Strings.isNullOrEmpty(cell0.toString())) {
 						lession.setTitle(row.getCell(0) == null ? "" : row.getCell(0).toString());
 						LessonPart part = new LessonPart();
 						String s = "";

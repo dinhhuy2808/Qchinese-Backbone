@@ -39,8 +39,11 @@ public class UserRankingDaoImpl implements UserRankingDao {
 					"	and userid = ? "+
 					"group by "+
 					"	u.userid");
-		return jdbcTemplate.queryForInt(sql.toString(), userId);
+		return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
+			return rs.getInt("total");
+		}).get(0);
 	}
+	
 
 	@Override
 	public int getCurrentRankBy(Long userId) {

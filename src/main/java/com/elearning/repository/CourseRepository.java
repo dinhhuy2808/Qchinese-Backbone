@@ -20,7 +20,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
 	List<Course> findByHsk(int hsk);
 
-	@Query(value = "select hsk, (select count(lesson) from course c1 where c1.hsk = c.hsk ) as lesson"
+	@Query(value = "select id, hsk,title, (select count(lesson) from course c1 where c1.hsk = c.hsk ) as lesson"
 			+ " from course c group by hsk order by hsk", nativeQuery = true)
 	List<Course> getAllCourses();
 }
